@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Ticket Queue Test</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            color: #222;
+        }
+
+        .container {
+            width: 900px;
+            max-width: calc(100% - 32px);
+            margin: 40px auto;
+            padding: 30px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        h1 {
+            margin-top: 0;
+            text-align: center;
+        }
+
+        .section {
+            margin-top: 25px;
+        }
+
+        .section-title {
+            margin-bottom: 12px;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        /* 사용자 입력 */
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 12px 16px;
+            border: none;
+            border-radius: 6px;
+            background: #222;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        button:hover {
+            opacity: 0.85;
+        }
+
+        /* 테스트 버튼 */
+        .test-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        /* 현재 사용자 상태 */
+        .status {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .status-card {
+            padding: 20px 10px;
+            background: #f8f8f8;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .status-card span {
+            display: block;
+            color: #777;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+
+        .status-card strong {
+            font-size: 24px;
+        }
+
+        /* 예상 대기시간 */
+        .waiting-time {
+            padding: 20px;
+            background: #f8f8f8;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .waiting-time span {
+            display: block;
+            color: #777;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+
+        .waiting-time strong {
+            font-size: 26px;
+        }
+
+        /* 테스트 통계 */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        .stats-card {
+            padding: 20px 10px;
+            background: #f8f8f8;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stats-card span {
+            display: block;
+            color: #777;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+
+        .stats-card strong {
+            font-size: 24px;
+        }
+
+        /* 메시지 */
+        .message {
+            min-height: 24px;
+            margin-top: 20px;
+            text-align: center;
+            color: #555;
+        }
+
+        /* 반응형 */
+        @media (max-width: 700px) {
+
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .status {
+                grid-template-columns: 1fr;
+            }
+
+            .test-buttons {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>Ticket Queue Test</h1>
+
+
+    <!-- ========================= -->
+    <!-- 사용자 대기열 입장 -->
+    <!-- ========================= -->
+
+    <div class="section">
+
+        <div class="section-title">
+            사용자 대기열 입장
+        </div>
+
+        <div class="input-group">
+
+            <input
+                    type="number"
+                    id="userId"
+                    placeholder="사용자 ID"
+                    value="1001"
+            >
+
+            <button onclick="enterQueue()">
+                대기열 입장
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- ========================= -->
+    <!-- 테스트 -->
+    <!-- ========================= -->
+
+    <div class="section">
+
+        <div class="section-title">
+            테스트
+        </div>
+
+        <div class="test-buttons">
+
+            <button onclick="enterTestUsers(100)">
+                100명 테스트
+            </button>
+
+            <button onclick="enterTestUsers(1000)">
+                1,000명 테스트
+            </button>
+
+            <button onclick="enterTestUsers(10000)">
+                10,000명 테스트
+            </button>
+
+            <button
+                    id="autoProcessButton"
+                    onclick="toggleAutoProcess()"
+            >
+                자동 처리 시작
+            </button>
+
+            <button onclick="resetStats()">
+                테스트 초기화
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- ========================= -->
+    <!-- 현재 사용자 상태 -->
+    <!-- ========================= -->
+
+    <div class="section">
+
+        <div class="section-title">
+            현재 사용자
+        </div>
+
+        <div class="status">
+
+            <div class="status-card">
+
+                <span>
+                    사용자 ID
+                </span>
+
+                <strong id="currentUser">
+                    -
+                </strong>
+
+            </div>
+
+
+            <div class="status-card">
+
+                <span>
+                    현재 순번
+                </span>
+
+                <strong id="position">
+                    -
+                </strong>
+
+            </div>
+
+
+            <div class="status-card">
+
+                <span>
+                    현재 대기 인원
+                </span>
+
+                <strong id="waitingCount">
+                    -
+                </strong>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ========================= -->
+    <!-- 예상 대기시간 -->
+    <!-- ========================= -->
+
+    <div class="section">
+
+        <div class="section-title">
+            예상 대기시간
+        </div>
+
+        <div class="waiting-time">
+
+            <span>
+                현재 사용자 예상 대기시간
+            </span>
+
+            <strong id="waitingTime">
+                -
+            </strong>
+
+        </div>
+
+    </div>
+
+
+    <!-- ========================= -->
+    <!-- 테스트 통계 -->
+    <!-- ========================= -->
+
+    <div class="section">
+
+        <div class="section-title">
+            테스트 통계
+        </div>
+
+        <div class="stats">
+
+            <div class="stats-card">
+
+                <span>
+                    총 요청
+                </span>
+
+                <strong id="requestCount">
+                    -
+                </strong>
+
+            </div>
+
+
+            <div class="stats-card">
+
+                <span>
+                    현재 대기
+                </span>
+
+                <strong id="statsWaitingCount">
+                    -
+                </strong>
+
+            </div>
+
+
+            <div class="stats-card">
+
+                <span>
+                    발급 성공
+                </span>
+
+                <strong id="successCount">
+                    -
+                </strong>
+
+            </div>
+
+
+            <div class="stats-card">
+
+                <span>
+                    발급 실패
+                </span>
+
+                <strong id="failureCount">
+                    -
+                </strong>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ========================= -->
+    <!-- 메시지 -->
+    <!-- ========================= -->
+
+    <div
+            class="message"
+            id="message"
+    ></div>
+
+</div>
+
+
+<script>
+
+    // 테스트할 티켓 ID
+    const ticketId = 1;
+
+    // 화면에 표시할 예상 대기시간
+    let displayedTime = null;
+
+    // 자동 처리 상태
+    let autoProcessing = false;
+
+    // 자동 처리 타이머
+    let autoProcessTimer = null;
+
+
+    // ========================================
+    // 예상 대기시간 포맷
+    // ========================================
+
+    function formatTime(sec) {
+
+        if (sec <= 0) {
+            return "-";
+        }
+
+        if (sec < 60) {
+            return `약 ${sec}초`;
+        }
+
+        return `약 ${Math.floor(sec / 60)}분 ${sec % 60}초`;
+    }
+
+
+    // ========================================
+    // 대기열 입장
+    // ========================================
+
+    async function enterQueue() {
+
+        const userId =
+            document.getElementById("userId").value;
+
+        if (!userId) {
+
+            alert("사용자 ID를 입력하세요.");
+
+            return;
+        }
+
+        try {
+
+            const response = await fetch(
+                `/api/tickets/${ticketId}/queue?userId=${userId}`,
+                {
+                    method: "POST"
+                }
+            );
+
+            if (!response.ok) {
+
+                throw new Error(
+                    "대기열 입장 실패"
+                );
+            }
+
+            const position =
+                await response.json();
+
+
+            document.getElementById(
+                "currentUser"
+            ).textContent = userId;
+
+
+            document.getElementById(
+                "position"
+            ).textContent = position;
+
+
+            document.getElementById(
+                "message"
+            ).textContent =
+                `${userId}번 사용자가 대기열에 입장했습니다.`;
+
+
+            await updateStatus();
+
+            await updateStats();
+
+        } catch (error) {
+
+            console.error(error);
+
+            document.getElementById(
+                "message"
+            ).textContent =
+                "대기열 입장에 실패했습니다.";
+        }
+    }
+
+
+    // ========================================
+    // 테스트 사용자 대량 등록
+    // ========================================
+
+    async function enterTestUsers(count) {
+
+        const confirmed =
+            confirm(
+                `${count.toLocaleString()}명을 대기열에 등록할까요?`
+            );
+
+        if (!confirmed) {
+            return;
+        }
+
+
+        try {
+
+            document.getElementById(
+                "message"
+            ).textContent =
+                `${count.toLocaleString()}명 등록 중...`;
+
+
+            const response = await fetch(
+                `/api/tickets/${ticketId}/queue/test?count=${count}`,
+                {
+                    method: "POST"
+                }
+            );
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    "테스트 사용자 등록 실패"
+                );
+            }
+
+
+            document.getElementById(
+                "message"
+            ).textContent =
+                `${count.toLocaleString()}명 등록 완료`;
+
+
+            await updateStats();
+
+            await updateStatus();
+
+        } catch (error) {
+
+            console.error(error);
+
+            document.getElementById(
+                "message"
+            ).textContent =
+                "테스트 사용자 등록에 실패했습니다.";
+        }
+    }
+
+
+    // ========================================
+    // 다음 사용자 처리
+    // ========================================
+
+    async function processNext() {
+
+        try {
+
+            const response = await fetch(
+                `/api/tickets/${ticketId}/queue/process`,
+                {
+                    method: "POST"
+                }
+            );
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    "사용자 처리 실패"
+                );
+            }
+
+
+        } catch (error) {
+
+            console.error(
+                "사용자 처리 실패:",
+                error
+            );
+        }
+    }
+
+
+    // ========================================
+    // 자동 처리 시작 / 중지
+    // ========================================
+
+    function toggleAutoProcess() {
+
+        const button =
+            document.getElementById(
+                "autoProcessButton"
+            );
+
+
+        // 자동 처리 중이면 중지
+        if (autoProcessing) {
+
+            autoProcessing = false;
+
+            clearInterval(
+                autoProcessTimer
+            );
+
+            autoProcessTimer = null;
+
+            button.textContent =
+                "자동 처리 시작";
+
+            document.getElementById(
+                "message"
+            ).textContent =
+                "자동 처리를 중지했습니다.";
+
+            return;
+        }
+
+
+        // 자동 처리 시작
+        autoProcessing = true;
+
+        button.textContent =
+            "자동 처리 중지";
+
+
+        document.getElementById(
+            "message"
+        ).textContent =
+            "자동 처리를 시작했습니다.";
+
+
+        // 100ms마다 다음 사용자 처리
+        autoProcessTimer =
+            setInterval(
+                processNext,
+                100
+            );
+    }
+
+
+    // ========================================
+    // 현재 사용자 대기열 상태
+    // ========================================
+
+    async function updateStatus() {
+
+        const userId =
+            document.getElementById("userId").value;
+
+
+        if (!userId) {
+            return;
+        }
+
+
+        try {
+
+            const response = await fetch(
+                `/api/tickets/${ticketId}/queue?userId=${userId}`
+            );
+
+
+            if (!response.ok) {
+                return;
+            }
+
+
+            const data =
+                await response.json();
+
+
+            // 현재 순번
+            document.getElementById(
+                "position"
+            ).textContent =
+                data.position <= 0
+                    ? "-"
+                    : data.position;
+
+
+            // 현재 대기 인원
+            document.getElementById(
+                "waitingCount"
+            ).textContent =
+                data.waitingCount;
+
+
+            // ========================================
+            // 예상 대기시간 스무딩
+            // ========================================
+
+            displayedTime =
+                displayedTime == null
+                    ? data.estimatedWaitingTime
+                    : Math.round(
+                        displayedTime * 0.7
+                        + data.estimatedWaitingTime * 0.3
+                    );
+
+
+            document.getElementById(
+                "waitingTime"
+            ).textContent =
+                formatTime(displayedTime);
+
+
+        } catch (error) {
+
+            console.error(
+                "상태 조회 실패:",
+                error
+            );
+        }
+    }
+
+
+    // ========================================
+    // 테스트 통계 조회
+    // ========================================
+
+    async function updateStats() {
+
+        try {
+
+            const response = await fetch(
+                `/api/tickets/${ticketId}/stats`
+            );
+
+
+            if (!response.ok) {
+                return;
+            }
+
+
+            const data =
+                await response.json();
+
+
+            // 총 요청
+            document.getElementById(
+                "requestCount"
+            ).textContent =
+                data.requestCount;
+
+
+            // 현재 대기
+            document.getElementById(
+                "statsWaitingCount"
+            ).textContent =
+                data.waitingCount;
+
+
+            // 발급 성공
+            document.getElementById(
+                "successCount"
+            ).textContent =
+                data.successCount;
+
+
+            // 발급 실패
+            document.getElementById(
+                "failureCount"
+            ).textContent =
+                data.failureCount;
+
+
+        } catch (error) {
+
+            console.error(
+                "통계 조회 실패:",
+                error
+            );
+        }
+    }
+
+
+    // ========================================
+    // 테스트 초기화
+    // ========================================
+
+    async function resetStats() {
+
+        const confirmed =
+            confirm(
+                "테스트 데이터를 초기화할까요?"
+            );
+
+
+        if (!confirmed) {
+            return;
+        }
+
+
+        try {
+
+            // 자동 처리 중이면 먼저 중지
+            if (autoProcessing) {
+
+                autoProcessing = false;
+
+                clearInterval(
+                    autoProcessTimer
+                );
+
+                autoProcessTimer = null;
+
+                document.getElementById(
+                    "autoProcessButton"
+                ).textContent =
+                    "자동 처리 시작";
+            }
+
+
+            const response = await fetch(
+                `/api/tickets/${ticketId}/stats/reset`,
+                {
+                    method: "POST"
+                }
+            );
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    "초기화 실패"
+                );
+            }
+
+
+            // 예상 대기시간 초기화
+            displayedTime = null;
+
+
+            document.getElementById(
+                "currentUser"
+            ).textContent = "-";
+
+
+            document.getElementById(
+                "position"
+            ).textContent = "-";
+
+
+            document.getElementById(
+                "waitingTime"
+            ).textContent = "-";
+
+
+            document.getElementById(
+                "message"
+            ).textContent =
+                "테스트가 초기화되었습니다.";
+
+
+            await updateStats();
+
+
+            // 사용자 ID가 입력되어 있다면 상태도 갱신
+            await updateStatus();
+
+
+        } catch (error) {
+
+            console.error(error);
+
+            document.getElementById(
+                "message"
+            ).textContent =
+                "테스트 초기화에 실패했습니다.";
+        }
+    }
+
+
+    // ========================================
+    // 3초마다 상태 갱신
+    // ========================================
+
+    setInterval(
+        updateStatus,
+        3000
+    );
+
+
+    // ========================================
+    // 3초마다 통계 갱신
+    // ========================================
+
+    setInterval(
+        updateStats,
+        3000
+    );
+
+
+    // ========================================
+    // 페이지 최초 실행
+    // ========================================
+
+    updateStatus();
+
+    updateStats();
+
+</script>
+
+</body>
+</html>
